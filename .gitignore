@@ -1,0 +1,23 @@
+# Ignore Python virtual environment
+venv/
+*.pyc
+__pycache__/
+
+# Ignore environment variables
+.env
+
+# Ignore cached data
+data/uploads/
+data/faiss_index/
+data/audio/
+
+# Ignore generated files
+*.png
+*.jpg
+*.jpeg
+*.mp3
+*.wav
+
+# Ignore IDE files
+.idea/
+*.iml
