@@ -33,6 +33,22 @@ def search_vectorstore(query, source_file="All"):
     return [doc.page_content for doc in docs]
 
 
+def refine_response(response):
+    """
+    Refine the response to ensure it's complete and concise.
+    :param response: Raw response from the model.
+    :return: Refined response.
+    """
+    # Remove trailing incomplete sentences
+    refined = response.strip()
+    if refined.endswith((".", "!", "?")):
+        return refined  # Already complete
+    else:
+        # Truncate to the last full sentence
+        sentences = refined.split(". ")
+        return ". ".join(sentences[:-1]) + "." if len(sentences) > 1 else refined
+
+
 def generate_response(query, use_context=True, source_file="All"):
     """
     Generate a response using Groq with RAG.
@@ -61,10 +77,15 @@ def generate_response(query, use_context=True, source_file="All"):
                 {"role": "system", "content": "You are a helpful assistant. Use the provided context to answer questions."},
                 {"role": "user", "content": full_prompt}
             ],
-            max_tokens=100,
-            temperature=0.7
+            max_tokens=500,
+            temperature=0.3, # Lower temperature for precision
+            stop=["\n\n", "In conclusion:"]# Stop at specific sequence
         )
-        return response.choices[0].message.content
+        # Refine raw response
+        raw_response = response.choices[0].message.content
+        refined_response = refine_response(raw_response)
+
+        return refined_response
     except Exception as e:
         print(f"Error generating response: {e}")
         return "An error occurred. Please try again."
@@ -81,8 +102,12 @@ def transcribe_audio(audio_file_path=None):
         if audio_file_path:
             # Convert audio to WAV for compatibility
             audio = AudioSegment.from_file(audio_file_path)
-            audio.export("temp.wav", format="wav")
-            with sr.AudioFile("temp.wav") as source:
+            audio = audio.set_frame_rate(16000).set_channels(1)  # Standardize to 16kHz mono
+            wav_file = "temp.wav"
+            audio.export(wav_file, format="wav")
+
+            #Use the converted WAV file for transcription
+            with sr.AudioFile(wav_file) as source:
                 recognizer.adjust_for_ambient_noise(source, duration=2)  # Improved noise adjustment
                 audio_data = recognizer.record(source)
                 text = recognizer.recognize_google(audio_data)
@@ -94,6 +119,7 @@ def transcribe_audio(audio_file_path=None):
                 recognizer.pause_threshold = 2.0
                 audio_data = recognizer.listen(source, timeout=20, phrase_time_limit=120)  # Increased limits
                 text = recognizer.recognize_google(audio_data)
+
         return text.strip() if text else None
     except sr.UnknownValueError:
         st.warning("No speech detected. Please try again.")

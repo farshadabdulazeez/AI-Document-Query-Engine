@@ -6,6 +6,9 @@ __pycache__/
 # Ignore environment variables
 .env
 
+*.json
+data/
+
 # Ignore cached data
 data/uploads/
 data/faiss_index/
